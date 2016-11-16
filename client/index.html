@@ -36,20 +36,53 @@
             return;
           }   
 
-          vm.readImgFile(files[0]).then(function (result) {
-            vm.image = result;
+          vm.readImgFile(files[0]).then( result => {
+            return vm.createImage(result);
+          }).then( image => {
+            vm.image = vm.compress(image, 500, 'jpg');
           });
         },
         readImgFile(file) {
-          return new Promise(function (resolve) {
+          return new Promise( resolve => {
             let reader = new FileReader();
 
-            reader.onload = function () {
+            reader.onload = () => {
               resolve(reader.result);
             };
 
             reader.readAsDataURL(file);
           });
+        },
+        createImage (dataUrl) {
+          return new Promise( resolve => {
+            let image    = new Image();
+            image.onload = () => {
+              resolve(image);
+            }
+            image.src    = dataUrl;
+          });
+        },
+        compress(image, maxWidth, mimeType){
+          let cvs      = document.createElement('canvas');
+          let width    = image.naturalWidth,
+              height   = image.naturalHeight,
+              imgRatio = width / height;
+
+          if(width > maxWidth){
+            width  = maxWidth;
+            height = width / imgRatio;
+          }   
+
+          cvs.width  = width;
+          cvs.height = height;
+
+          let ctx = cvs.getContext('2d');
+          ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, width, height);
+          let quality = width >= 1500 ? 0.5 :
+              width > 600 ? 0.6 : 1;
+          let newImageData = cvs.toDataURL(mimeType, quality);
+
+          return newImageData;
         },
         removeImage: function (e) {
           this.image = '';
