@@ -3,6 +3,7 @@
 <head>
   <title>image_upload</title>
   <script src="/vue.js"></script>
+  <script src="/exif.js"></script>
 </head>
 <body>
   <div id="app">
@@ -39,9 +40,12 @@
           vm.readImgFile(files[0]).then( result => {
             return vm.createImage(result);
           }).then( image => {
-            vm.image = vm.compress(image, 500, 'jpg');
+            return vm.orientation(image);
+          }).then( ([image, orientation]) => {
+            vm.image = vm.compress(image, 500, 'image/jpeg', orientation);
           });
         },
+
         readImgFile(file) {
           return new Promise( resolve => {
             let reader = new FileReader();
@@ -53,6 +57,7 @@
             reader.readAsDataURL(file);
           });
         },
+
         createImage (dataUrl) {
           return new Promise( resolve => {
             let image    = new Image();
@@ -62,7 +67,16 @@
             image.src    = dataUrl;
           });
         },
-        compress(image, maxWidth, mimeType){
+
+        orientation(image){
+          return new Promise( resolve => {
+            EXIF.getData(image, () => {
+              resolve([image, EXIF.getTag(image, 'Orientation')]);
+	    });
+          });
+        },
+
+        compress(image, maxWidth, imageType, orientation){
           let cvs      = document.createElement('canvas');
           let width    = image.naturalWidth,
               height   = image.naturalHeight,
@@ -77,12 +91,31 @@
           cvs.height = height;
 
           let ctx = cvs.getContext('2d');
-          ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, width, height);
+          //旋转
+          switch(orientation){
+          case 3:
+            ctx.translate(cvs.width, cvs.height);
+            ctx.rotate(Math.PI);
+            break;
+          case 6:
+	    cvs.width = height;
+	    cvs.height = width;
+            ctx.rotate(0.5 * Math.PI);
+            ctx.translate(0, -height);
+            portrait = 1;
+            break;
+          case 8:
+	    cvs.width = height;
+	    cvs.height = width;
+            ctx.rotate(-0.5 * Math.PI);
+            ctx.translate(-width, 0);
+            portrait = 1;
+            break;
+          }
+          ctx.drawImage(image, 0, 0, width, height);
           let quality = width >= 1500 ? 0.5 :
               width > 600 ? 0.6 : 1;
-          let newImageData = cvs.toDataURL(mimeType, quality);
-
-          return newImageData;
+          return cvs.toDataURL(imageType, quality);
         },
         removeImage: function (e) {
           this.image = '';
