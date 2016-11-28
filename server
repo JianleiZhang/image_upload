@@ -11,4 +11,13 @@ get '/' => sub {
   $c->reply->static('index.html');
 };
 
+# Multipart upload handler
+post '/upload' => sub {
+  my $c     = shift;
+  my $image = $c->param('image');
+  my $size  = $image->size;
+  my $name  = $image->filename;
+  $c->render(text => "Thanks for uploading $size byte file $name.");
+};
+
 app->start;

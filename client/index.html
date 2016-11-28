@@ -13,7 +13,10 @@
       <input type="file" @change="onFileChange">
     </div>
     <div v-else>
-      <img :src="image" />
+      <img :src="image" /><br>
+      <p>completedPercent: {{percent}}%</p>
+      <br>
+      <button @click="uploadImage">Upload</button>
       <button @click="removeImage">Remove image</button>
     </div>
   </div>
@@ -22,7 +25,8 @@
     new Vue({
       el: '#app',
       data: {
-        image: ''
+        image: '',
+        percent: 0
       },
       methods: {
         onFileChange(e) {
@@ -117,8 +121,47 @@
               width > 600 ? 0.6 : 1;
           return cvs.toDataURL(imageType, quality);
         },
-        removeImage: function (e) {
-          this.image = '';
+        removeImage: function () {
+          this.image   = '';
+          this.percent = 0;
+        },
+        uploadImage: function () {
+          let fd   = new FormData();
+          let xhr  = new XMLHttpRequest();
+          let vm   = this;
+          let blob = vm.dataURItoBlob(this.image);
+
+          fd.append("image", blob);
+          xhr.timeout = 3000;
+          xhr.open('POST', '/upload', true);
+          xhr.onload = function(e) { 
+            if(this.status == 200||this.status == 304){
+              alert(this.responseText);
+            }
+          };
+          xhr.upload.onprogress = function(event) {
+            if (event.lengthComputable) {
+              console.log(event.loaded);
+              vm.percent = Math.round((event.loaded / event.total) * 100);
+            }
+          };
+          xhr.send(fd);
+        },
+        dataURItoBlob: function (dataURI) {
+          let byteString;
+          if (dataURI.split(',')[0].indexOf('base64') >= 0)
+            byteString = atob(dataURI.split(',')[1]);
+          else
+            byteString = unescape(dataURI.split(',')[1]);
+
+          var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+
+          var ia = new Uint8Array(byteString.length);
+          for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+
+          return new Blob([ia], {type:mimeString});
         }
       }
     })
